@@ -1,13 +1,15 @@
 """
 agent.py — Low-memory RAG agent using BM25 keyword retrieval + Groq LLaMA.
 
-Memory footprint (vs old version):
-  OLD: sentence-transformers (~470 MB) + ChromaDB   → >512 MB ❌ crashes Render free tier
-  NEW: BM25 over chunks.json (~10 MB) + Groq API    → ~150 MB ✅ safe on free tier
+Memory footprint:
+  OLD: sentence-transformers + ChromaDB  → >512 MB ❌ Render free tier crash
+  NEW: BM25 + chunks.json + Groq API     → ~100 MB ✅ stable
 """
 import json
 import logging
 import os
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from threading import Lock
 
@@ -135,21 +137,24 @@ def _bm25_search(question: str, k: int = 5) -> str:
     return "\n\n".join(top_texts)
 
 
-def _web_search(question: str, max_results: int = 3) -> str:
-    """DuckDuckGo web search fallback (no API key required)."""
+def _web_search(question: str) -> str:
+    """DuckDuckGo Instant Answers API — stdlib only, no extra library."""
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(
-                f"Graphic Era University GEU {question}", max_results=max_results
-            ))
-        if not results:
-            return ""
-        snippets = "\n\n".join(
-            f"[Web] {r.get('title', '')}: {r.get('body', '')}" for r in results
-        )
-        logger.info("Web search returned %d results", len(results))
-        return snippets
+        q = urllib.parse.quote(f"Graphic Era University GEU {question}")
+        url = f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1&skip_disambig=1"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        texts = []
+        if data.get("AbstractText"):
+            texts.append(data["AbstractText"])
+        for r in data.get("RelatedTopics", [])[:4]:
+            if isinstance(r, dict) and r.get("Text"):
+                texts.append(r["Text"])
+        result = "\n\n".join(texts)
+        if result:
+            logger.info("Web search returned %d snippets", len(texts))
+        return result
     except Exception:
         logger.warning("Web search failed", exc_info=True)
         return ""

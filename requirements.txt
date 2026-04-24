@@ -5,18 +5,9 @@ gunicorn==23.0.0
 python-dotenv==1.2.2
 requests==2.33.1
 
-# ── BM25 retrieval (replaces sentence-transformers + ChromaDB — saves ~400 MB RAM) ──
+# ── BM25 retrieval (replaces sentence-transformers — saves ~400 MB RAM) ────────
 rank-bm25==0.2.2
 
-# ── Bots ──────────────────────────────────────────────────────────────────────
-python-telegram-bot==22.7
-duckduckgo-search==8.0.1
-
-# ── Local ingest only (not needed on Render) ──────────────────────────────────
-# chromadb==1.5.8
-# langchain-chroma==1.1.0
-# langchain-community==0.4.1
-# langchain-huggingface==1.2.2
-# langchain-text-splitters==1.1.2
-# pypdf==6.10.2
-# sentence-transformers==5.4.1
+# NOTE: python-telegram-bot and duckduckgo-search are intentionally removed.
+# Telegram uses webhook via plain requests (no polling thread, no signal handler issues).
+# Web search uses stdlib urllib (no extra library needed).
