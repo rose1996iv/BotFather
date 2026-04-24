@@ -16,5 +16,8 @@ Thumbs.db
 # Cloudflare binary (too large for git)
 cloudflared.exe
 
+# PDFs are too large for GitHub (100MB+) — use chroma_db instead
+pdfs/
+
 # NOTE: chroma_db/ is intentionally NOT ignored
 # It must be committed so Render can use it without rebuilding
