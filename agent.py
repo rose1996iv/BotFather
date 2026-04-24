@@ -1,9 +1,14 @@
 """
-agent.py — Low-memory RAG agent using BM25 keyword retrieval + Groq LLaMA.
+agent.py - Low-memory RAG agent: BM25 retrieval + query translation + Groq LLaMA.
 
-Memory footprint:
-  OLD: sentence-transformers + ChromaDB  → >512 MB ❌ Render free tier crash
-  NEW: BM25 + chunks.json + Groq API     → ~100 MB ✅ stable
+Pipeline:
+  Myanmar question
+       -> keyword expand (dict, instant)
+       -> translate to English (llama-3.1-8b-instant, fast)
+       -> BM25 search over English PDF chunks
+       -> llama-3.3-70b-versatile generates Myanmar answer
+
+Memory: ~100 MB (safe for Render free 512 MB tier)
 """
 import json
 import logging
@@ -29,52 +34,110 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 CHUNKS_FILE = BASE_DIR / "chunks.json"
-CHAT_MODEL = "llama-3.3-70b-versatile"
-ADMISSION_LINK = "https://tinyurl.com/2dj2jefy"  # Short link → globalarcus.com/apply-now
+CHAT_MODEL = "llama-3.3-70b-versatile"   # Main response model
+FAST_MODEL = "llama-3.1-8b-instant"       # Fast translation model
+ADMISSION_LINK = "https://tinyurl.com/2dj2jefy"
+
+# ---------------------------------------------------------------------------
+# Myanmar -> English keyword expansion map
+# Covers the most common terms Myanmar students use when asking about GEU.
+# Zero API calls, zero latency.
+# ---------------------------------------------------------------------------
+MM_EN_MAP = {
+    # Fees
+    "\u1001\u103b\u1031\u102c\u1004\u103a\u1000\u103c\u1031\u1038": "tuition fee",
+    "\u101e\u1004\u103a\u1000\u103c\u1031\u1038": "tuition fee",
+    "\u1001\u103b\u1031\u102c\u1004\u103a\u101c\u1001\u103a": "fee cost",
+    "\u1000\u103c\u1031\u1038\u1004\u103a\u1038": "fee cost price",
+    # Programs / Departments
+    "\u1000\u103d\u1014\u103a\u1015\u103b\u1031\u102c\u1010\u102c": "computer science CSE engineering",
+    "\u1021\u1004\u103a\u1002\u103b\u1004\u103a\u1014\u102e\u101a\u102c": "engineering",
+    "\u1006\u1031\u1038\u1015\u103d\u102c\u1038\u101b\u1031\u1038": "business management MBA",
+    "\u1021\u1015\u102f\u1000\u103a\u1001\u103b\u1031\u102c\u1004\u103a": "law legal studies",
+    "\u1012\u1000\u103d\u1031\u1038": "design",
+    "\u1014\u100a\u103a\u1038\u1005\u1031\u1038": "nursing health",
+    "\u1018\u102d\u102f\u101b\u1031\u1010\u102f": "biotechnology biology",
+    "\u1006\u102d\u102f\u1019\u1000\u103c\u1019\u103a": "food science technology",
+    "\u1019\u1000\u102c\u101e\u102d\u1015\u100a\u102a": "microbiology science",
+    "\u1021\u1031\u101b\u102c\u101e\u102c": "aerospace space engineering",
+    "\u1005\u1019\u103a\u101c\u1031\u1010\u1000\u103a\u101e\u102d\u1015\u100a\u102a": "electronics communication ECE",
+    "\u1015\u101b\u1019\u1031\u1012\u101b\u102c\u1038\u101e\u102d\u1015\u100a\u102a": "paramedical science",
+    "\u101d\u1004\u103a\u1000\u103c\u1031\u102c\u1038\u1001\u103c\u1031\u102c\u1038": "civil engineering",
+    "\u101d\u1014\u103a\u1000\u103c\u1031\u102c\u1038": "electrical engineering",
+    "\u101e\u100d\u102c": "mechanical engineering",
+    # Admission & process
+    "\u101d\u1004\u103a\u1001\u103d\u1004\u103a": "admission apply application",
+    "\u101d\u1004\u103a\u1001\u103d\u1004\u103a\u101c\u103b\u103e\u1031\u1038": "application form admission form",
+    "\u101e\u1019\u1039\u1019\u101c\u1031\u102c": "requirement eligibility criteria",
+    "\u1021\u1001\u103a\u1001\u103a\u1021\u101c\u1031\u1015\u103a": "deadline last date",
+    # Living & scholarship
+    "\u1015\u100a\u102c\u101e\u1004\u103a\u1006\u1030": "scholarship award grant",
+    "\u1015\u100a\u102c\u101e\u1004\u103a": "scholarship",
+    "\u1021\u1006\u1031\u102c\u1004\u103a": "hostel accommodation dormitory",
+    "\u1014\u1031\u1015\u100a\u103a\u1019\u100a\u103a": "living expenses accommodation",
+    "\u1005\u102c\u1021\u1005\u102c": "food meal canteen",
+    # General
+    "\u1000\u103b\u1031\u102c\u1004\u103a\u101e\u102c": "university college",
+    "\u1010\u1000\u1039\u1000\u101e\u102d\u1015\u100a\u102a": "university",
+    "\u1000\u103b\u1031\u102c\u1004\u103a\u101e\u102c\u103c\u1031\u102c": "student",
+    "\u1021\u1004\u103a\u1002\u103b\u1004\u103a\u1014\u102e": "india",
+    "\u1014\u103e\u1005\u103a": "year academic year",
+    "\u1010\u1014\u103e\u1005\u103a": "first year freshman",
+    "\u1010\u1015\u103b\u1014\u103e\u1005\u103a": "second year sophomore",
+    "\u1014\u1031\u102c\u1000\u103a\u1000\u103b\u1031\u102c\u1004\u103a\u101e\u102c\u101e\u102c": "international student foreign",
+    "\u1015\u1031\u102c\u1004\u103a": "course program",
+    "\u1018\u102d\u102f\u101b\u1014\u103a\u1019\u103e\u102f": "subject department",
+    "\u1015\u100a\u102c\u101e\u1004\u103a\u101e\u1019\u102c\u1038": "scholarship criteria",
+    "\u1006\u1031\u1038\u1015\u103d\u102c\u1038\u1015\u100a\u102c\u101e\u1004\u103a": "business scholarship MBA",
+    "\u101b\u1004\u103a\u1014\u103e\u1005\u103a": "how many years duration",
+    "\u1018\u102c\u101e\u102c": "language medium instruction",
+    "\u101e\u1004\u103a\u101e\u1014\u103a\u1021\u1001\u103a\u1021\u101c\u1031\u1015\u103a": "contact information website",
+}
 
 SYSTEM_PROMPT = f"""You are a passionate Global Arcus Ambassador for Graphic Era University (GEU), India.
 Your mission: Help Myanmar students discover their dream of studying in India at GEU and INSPIRE them to apply.
 Always reply in Myanmar (Burmese) language using Unicode Myanmar (not Zawgyi).
 
 PERSONALITY & TONE:
-- Be warm, enthusiastic, and encouraging — like a trusted older sibling who studied there
-- Use friendly Myanmar conversational style (not formal/stiff)
+- Be warm, enthusiastic, and encouraging like a trusted older sibling who studied there
+- Use friendly Myanmar conversational style (not formal or stiff)
 - Show genuine excitement about GEU opportunities
 - Use emojis sparingly but effectively (🎓 💡 🌟 ✅)
 
-CRITICAL RULE — DO NOT TRANSLATE THESE ENGLISH TERMS:
+CRITICAL RULE - DO NOT TRANSLATE THESE ENGLISH TERMS:
 These words must ALWAYS appear in English. Never substitute with Myanmar words:
-  - "Uniform" → NEVER "ထဘီ" or "ယူနီဖောင်း"
-  - "Tuition" → NEVER "ကျောင်းလခ" or "ပညာသင်ကြေး"
-  - "Scholarship" → NEVER "ပညာသင်ဆု"
-  - "Hostel" → NEVER "အဆောင်"
-  - "Semester" → NEVER "နှစ်ဝက်"
-  - "Campus" → NEVER "ကျောင်းဝင်းထဲ"
-  - "Department" → NEVER "ဌာန"
-  - "Admission" → NEVER "ဝင်ခွင့်"
+  - "Uniform" - NEVER write the Myanmar equivalent
+  - "Tuition" - NEVER write the Myanmar equivalent
+  - "Scholarship" - NEVER write the Myanmar equivalent
+  - "Hostel" - NEVER write the Myanmar equivalent
+  - "Semester" - NEVER write the Myanmar equivalent
+  - "Campus" - NEVER write the Myanmar equivalent
+  - "Department" - NEVER write the Myanmar equivalent
+  - "Admission" - NEVER write the Myanmar equivalent
+  - "Fee" - always pair as "Tuition fee" or "Uniform fee"
 
-CORRECT response style:
-Q: CSE ကျောင်းကြေး ဘယ်လောက်လဲ?
+CORRECT response style example:
+Q: CSE tuition fee?
 A: 🎓 CSE Department ကတော့ မြန်မာကျောင်းသားတွေကြားမှာ အရမ်းပြိုင်ဆိုင်မှုမြင့်တဲ့ Program တစ်ခုပါ!
 
-💰 ကြေးနှုန်းအချက်အလက် —
-• Tuition fee: USD 2,310 per year
-• Uniform fee: USD 250 (ပထမနှစ်တစ်ကြိမ်သာ)
-• Scholarship ရရင် Hostel, food, living expenses အကုန် FREE ပါ 🌟
+💰 ကြေးနှုန်းများ:
+   - Tuition fee: USD 2,310 per year
+   - Uniform fee: USD 250 (ပထမနှစ်တစ်ကြိမ်သာ)
+   - Scholarship ရရင် Hostel + food + living expenses FREE 🌟
 
-VERIFIED FACTS (always accurate):
+VERIFIED FACTS (always use these, never invent):
 - Tuition: USD 2,310 per year
 - Uniform fee: USD 250 (first year only, one-time)
 - Scholarship students: Hostel + food + living expenses = FREE
 - Admission deadline: end of July (approximately)
 
 CONTEXT RULE:
-- Use the provided context as your knowledge base
+- Use the provided context from GEU knowledge base first
 - If web results are included, you may reference them
 - If still unsure, say: "ဒီအချက်အတွက် www.geu.ac.in ကို တိုက်ရိုက် ဆက်သွယ်မေးကြည့်ပါ"
 - Never invent facts
 
-CALL TO ACTION (MANDATORY — end EVERY response with this block):
+CALL TO ACTION (MANDATORY - end EVERY response with this):
 ---
 🚀 GEU မှာ သင့်အနာဂတ်ကို စတင်ပါ! Scholarship နဲ့ India မှာ တက္ကသိုလ်ပညာသင်ကြားဖို့ ဒီနေ့ပဲ Admission Form ဖြည့်လိုက်ပါ:
 👉 {ADMISSION_LINK}
@@ -85,8 +148,7 @@ _runtime = None
 _runtime_lock = Lock()
 
 
-def _tokenize(text: str) -> list[str]:
-    """Simple whitespace tokenizer that handles both English and Myanmar text."""
+def _tokenize(text: str) -> list:
     return text.lower().split()
 
 
@@ -108,7 +170,7 @@ def _initialize_runtime():
 
     logger.info("Loading BM25 knowledge base from %s ...", CHUNKS_FILE)
     with open(CHUNKS_FILE, encoding="utf-8") as f:
-        chunks: list[dict] = json.load(f)
+        chunks = json.load(f)
 
     texts = [c["text"] for c in chunks]
     tokenized = [_tokenize(t) for t in texts]
@@ -128,17 +190,81 @@ def _get_runtime():
     return _runtime
 
 
-def _bm25_search(question: str, k: int = 5) -> str:
-    """Retrieve top-k chunks from the knowledge base via BM25."""
+def _keyword_expand(question: str) -> str:
+    """
+    Instant Myanmar->English expansion using MM_EN_MAP dictionary.
+    Appends English equivalents so BM25 can match English PDF content.
+    Zero API calls, zero latency.
+    """
+    extra = []
+    for mm_term, en_term in MM_EN_MAP.items():
+        if mm_term in question:
+            extra.append(en_term)
+    if extra:
+        expanded = question + " " + " ".join(extra)
+        logger.info("Keyword expand: +%d terms added", len(extra))
+        return expanded
+    return question
+
+
+def _translate_query(question: str) -> str:
+    """
+    Translate Myanmar question to English using Groq llama-3.1-8b-instant.
+    Fast (~0.3s), free tier, dramatically improves BM25 retrieval recall.
+    Falls back to original question on any error.
+    """
+    # Skip translation if question is already mostly English
+    myanmar_char_count = sum(1 for c in question if "\u1000" <= c <= "\u109f")
+    if myanmar_char_count < 3:
+        return question
+
+    try:
+        runtime = _get_runtime()
+        resp = runtime["client"].chat.completions.create(
+            model=FAST_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Translate the following Myanmar/Burmese text to English. "
+                        "Output ONLY the English translation. No explanations. "
+                        "Focus on university/education terminology."
+                    ),
+                },
+                {"role": "user", "content": question},
+            ],
+            max_tokens=80,
+            temperature=0,
+        )
+        translated = resp.choices[0].message.content.strip()
+        logger.info("Query translated: '%s' -> '%s'", question[:30], translated[:50])
+        # Return combined: both Myanmar+English for maximum BM25 coverage
+        return f"{question} {translated}"
+    except Exception:
+        logger.warning("Query translation failed, using original", exc_info=True)
+        return question
+
+
+def _bm25_search(question: str, k: int = 6) -> str:
+    """
+    Two-stage retrieval pipeline:
+      Stage 1: keyword expand  (dictionary, instant)
+      Stage 2: LLM translate   (fast model, ~0.3s)
+      Stage 3: BM25 search     (in-memory, instant)
+    """
+    expanded = _keyword_expand(question)
+    search_query = _translate_query(expanded)
+
     runtime = _get_runtime()
-    scores = runtime["bm25"].get_scores(_tokenize(question))
+    scores = runtime["bm25"].get_scores(_tokenize(search_query))
     top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
     top_texts = [runtime["texts"][i] for i in top_indices if scores[i] > 0]
+    logger.info("BM25 retrieved %d chunks", len(top_texts))
     return "\n\n".join(top_texts)
 
 
 def _web_search(question: str) -> str:
-    """DuckDuckGo Instant Answers API — stdlib only, no extra library."""
+    """DuckDuckGo Instant Answers API - stdlib only, no extra library."""
     try:
         q = urllib.parse.quote(f"Graphic Era University GEU {question}")
         url = f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1&skip_disambig=1"
@@ -162,13 +288,13 @@ def _web_search(question: str) -> str:
 
 def ask(question: str) -> str:
     try:
-        # Step 1: BM25 retrieval from knowledge base
+        # Step 1: BM25 retrieval with query translation
         local_context = _bm25_search(question)
 
         # Step 2: Web search fallback if context is thin
         web_context = ""
         if len(local_context) < 200:
-            logger.info("Local context thin — running web search")
+            logger.info("Local context thin - running web search")
             web_context = _web_search(question)
 
         context_parts = []
@@ -183,7 +309,10 @@ def ask(question: str) -> str:
             model=CHAT_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
+                {
+                    "role": "user",
+                    "content": f"Context:\n{context}\n\nQuestion: {question}",
+                },
             ],
             max_tokens=1024,
             temperature=0.7,
