@@ -48,6 +48,7 @@ India Embassy မှ ထုတ်ပေးသည်။
    - https://indianvisaonline.gov.in တွင် Account တည်ဆောက်ပါ
    - Personal details, education background, GEU admission info ဖြည့်ပါ
    - Passport number, intended date of travel ထည့်ပါ
+**မှတ်ချက်** — *Travel Date ကို 2-3 ပတ် စောပြီး ထည့်ပါ — လေယာဉ်လက်မှတ်မဝယ်ခင်ကတည်းက ပေးရပါတယ်*  မြန်မာနိုင်ငံမှာ India Embassy နှစ်ရှိတာမို့ ဖောင်ဖြည့်သွင်းချိန်မှာပင်လျှင် မိမိ ဝင်ရောက်လိုသော မြို့ (Mandaly, Yangon) ကို ရွေးချယ်ရပါမယ်ဗျ။
 
 **Step 2** — Documents Scan လုပ်ပါ
    - Passport first/last page
@@ -56,15 +57,13 @@ India Embassy မှ ထုတ်ပေးသည်။
    - Financial Documents
    - Photos (JPEG, max 1MB)
 
-**Step 3** — VFS Global Appointment ကြိုတင် ရယူပါ
-   - https://www.vfsglobal.com/india/myanmar
-   - Appointment date ရရှိသည်နှင့် မလျှော့ပါနှင့်
+**မှတ်ချက်** — *Academic Certificates အားလုံးကို Notarized လုပ်ရပါမယ်* သံရုံးတည်နေရာ ရွေးချယ်မှုကြောင့် လိုအပ်သော စာရွက်စာတမ်းများသည် ပြောင်းလဲမှုရှိနိုင်သောကြောင့် သံရုံးသို့ ဆက်သွယ်မေးမြန်းမှု ပြုလုပ်ရန် အထူးအရေးကြီးပါသည်။ 
 
-**Step 4** — Embassy / VFS Office သို့ သွားပါ
+**Step 3** — Embassy Office သို့ သွားပါ
    - Original + Photocopy အားလုံး ယူသွားပါ
-   - Visa Fee: USD 80 ခန့် (ပြောင်းလဲနိုင်သည်)
+   - Visa Fee: အခမဲ့ပါ
 
-**Step 5** — Visa Approval
+**Step 4** — Visa Approval
    - ပုံမှန် processing time: ၃–၅ business days
    - Approved Visa ကို Passport ထဲတွင် stamp လုပ်ပေးသည်
 
@@ -93,7 +92,7 @@ India Embassy မှ ထုတ်ပေးသည်။
 - Scholarship Letter (ရပါက)
 - USD 200-300 ခန့် (ပထမ ၁ လ အတွက်)
 - Passport Photos (၆-၈ ပုံ)
-- Myanmar SIM Card (International Roaming ဖွင့်ထားပါ)
+- Myanmar SIM Card (International Roaming ကြိုဝယ်ထားပါ / ဖွင့်ထားပါ)
 
 ---
 
@@ -108,13 +107,13 @@ India Embassy မှ ထုတ်ပေးသည်။
 ### FRRO Registration (မဖြစ်မနေ)
 - India ရောက်ပြီး **၁၄ ရက်အတွင်း** FRRO (Foreigners Regional Registration Office) မှာ မှတ်ပုံတင်ရမည်
 - Online: https://indianfrro.gov.in
-- Required: Passport, Visa, Admission Letter, Hostel Address
+- Required: Passport, Visa, Admission Letter, Hostel Address, FRRO Certificate, National ID Card (Original + Notarized Copy)
 
 ---
 
 ## ဆက်သွယ်ရန်
 
-- **Global Arcus Myanmar Office**: [ဖုန်းနံပါတ် ထည့်ပါ]
-- **GEU International Office**: intl@geu.ac.in
+- **Global Arcus Myanmar Office**: [+918810366357]
+- **GEU International Office**: [internationalaffairs@geu.ac.in, anjalilimbu.tc@geu.ac.in]
 - **GEU Website**: www.geu.ac.in
 - **Admission Portal**: https://tinyurl.com/2dj2jefy

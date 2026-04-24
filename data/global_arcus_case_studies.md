@@ -15,24 +15,24 @@ Scholarship Coverage (Full Package):
 
 ---
 
-## 2024-2025 Batch — Myanmar Student Highlights
+## 2024-2026 Batch — Myanmar Student Highlights
 
 ### Program Statistics
-- Total Myanmar students enrolled: [Update with actual number]
-- Departments most chosen: CSE, ECE, Mechanical Engineering, Management, Biotechnology
-- Scholarship recipients: [Update with actual percentage]
-- Students who renewed for Year 2: [Update with actual number]
+- Total Myanmar students enrolled: [4 Students in 2024-2025 Batch, 8 Students in 2025-2026 Batch]
+- Departments most chosen: CSE, ECE, Civil Engineering, Management, Biotechnology, BSc Nursing
+- Scholarship recipients: Partially Scholarship to all admitted students
+- Students who renewed for Year 2: 6 students
 
 ---
 
 ## Case Study 1 — CSE Department Success (2024 Batch)
 
-**Student Profile**: Ko [Name], from Yangon, Myanmar
+**Student Profile**: Ko Peter, from Yangon, Myanmar
 **Program**: B.Tech Computer Science Engineering (CSE)
-**Year**: 1st Year, 2024-2025
+**Year**: 1st Year, 2025-2026
 
 **Background**:
-After completing Matriculation in Myanmar, Ko [Name] heard about Global Arcus through
+After completing Grade 12th in India, Ko Peter heard about Global Arcus through
 a Facebook post. He applied online and received a full Scholarship covering Hostel,
 food, and living expenses.
 
@@ -45,48 +45,67 @@ food, and living expenses.
 **Key Quote**:
 "Before Global Arcus, I thought studying abroad was only for rich families.
 Now I am studying B.Tech CSE at GEU completely free. The Scholarship covers
-everything. I only paid USD 250 for Uniform in the first year." — Ko [Name]
+everything. I only paid USD 250 for Uniform in the first year." — Ko Peter
 
 ---
 
 ## Case Study 2 — Engineering Department (2023-2024 Batch)
 
-**Student Profile**: Ma [Name], from Mandalay, Myanmar
+**Student Profile**: Ko Peng, from Magway, Myanmar
 **Program**: B.Tech Electronics & Communication Engineering (ECE)
-**Year**: 2nd Year (returning student)
+**Year**: 1st Year, 2025-2026
 
 **Scholarship Journey**:
 Applied through Global Arcus Ambassador in Mandalay. Got selected based on
 Matriculation grades. Full Scholarship received including Hostel + food.
 
 **Academic Performance**:
-- CGPA: [Update with actual data]
+- CGPA: 7.8
 - Participated in National Engineering Competitions
 - Member of GEU Robotics Club
 
 **Advice to Future Students**:
 "Apply as early as possible before the July deadline. Bring all your original
 documents and notarized copies. The first month is challenging but GEU has
-Myanmar student seniors who will guide you." — Ma [Name]
+Myanmar student seniors who will guide you." — Ko Peng
 
 ---
 
 ## Case Study 3 — Management / MBA Track (2024 Batch)
 
-**Student Profile**: Ko [Name], from Taunggyi, Myanmar
-**Program**: BBA (Bachelor of Business Administration)
-**Year**: 1st Year, 2024-2025
+**Student Profile**: Ko Thang, from Yangon, Myanmar
+**Program**: MBA (Master of Business Administration)
+**Year**: 1st Year, 2025-2026
 
 **Why Management?**:
-Wanted to start a business back in Myanmar after graduation. GEU's BBA program
+Wanted to start a business back in Myanmar after graduation. GEU's MBA program
 includes industry internships and live projects with Indian companies.
 
 **Campus Life Highlights**:
 - Language: English is the medium of instruction (easy transition from Myanmar)
-- Weather: Dehradun is cooler than Myanmar — comfortable year-round
+- Weather: Dehradun is cool.
 - Festivals: GEU celebrates Myanmar New Year Water Festival with Myanmar students
 - Community: Active Myanmar Student Association at GEU Campus
 
+---
+
+## Case Study 4 — B.Sc Nursing Program
+
+**Student Profile**: Ma Ngun
+**Program**: B.Sc Nursing
+**Year**: 1st Year, 2025-2026
+
+**Why Nursing?**:
+Wanted to work as a nurse in a foreign country after graduation. GEU's 
+B.Sc Nursing program includes clinical rotations in top hospitals.
+
+**Campus Life Highlights**:
+- Language: English is the medium of instruction (easy transition from Myanmar)
+- Weather: Dehradun is cool. 
+- Festivals: GEU celebrates Myanmar New Year Water Festival with Myanmar students
+- Community: Active Myanmar Student Association at GEU Campus. You can make new friends from all over the world. 
+- Teaching: The teachers are very friendly and helpful. They are always willing to help us with our studies. 
+- Labs: The labs are very modern and well-equipped. We have access to the latest technology and equipment. 
 ---
 
 ## Frequently Asked Questions from Myanmar Students
@@ -102,19 +121,17 @@ A: GEU Scholarship အတွက် Matriculation Grade တစ်ခုတည်�
    Distinction မရသော်လည်း Scholarship ရနိုင်ပါသည်။
 
 **Q: Hostel မှာ Myanmar ကျောင်းသားချင်း အတူနေရမလား?**
-A: GEU Hostel သည် International Student Mixed Hostel ဖြစ်သည်။
-   Myanmar + Indian + Other ASEAN Students အတူနေကြသည်။
-   Myanmar Community ကလည်း ကြီးမားပြီး ပင်ကိုပင် Whatsapp Group ရှိသည်။
+A: GEU Hostel သည် International Student Only Hostel ဖြစ်သည်။
+   Myanmar ကျောင်းသားများ အတူနေထိုင်ရသည်။ Myanmar Community ကလည်း ကြီးမားပြီး ကိုယ်တိုင် Whatsapp Group ရှိသည်။
 
 **Q: Myanmar Food ရနိုင်မလား?**
 A: GEU Campus Canteen မှာ Myanmar Food မပါသော်လည်း
-   Dehradun City ထဲ Myanmar / Nepali Food ရနိုင်သော ဆိုင်များ ရှိသည်။
-   Senior Myanmar students မှ ချက်ပြုတ်နည်းများ သင်ကြားပေးသည်။
+   Dehradun City ထဲ Myanmar / Nepali Food /Tibetan Food ရရှိနိုင်သော ဆိုင်များ ရှိသည်။ Delhi မြို့တွင် Myanmar Food ရရှိနိုင်သောဆိုင်များ ရှိသည်။ Senior Myanmar students မှ ချက်ပြုတ်နည်းများ သင်ကြားပေးသည်။
 
 **Q: Safety ကောင်းမလား?**
 A: Dehradun သည် India ၏ Education City တစ်ခု ဖြစ်သည်။
    Student population မြင့်မားပြီး လုံခြုံရေး ကောင်းမွန်သည်။
-   GEU Campus ၂၄ နာရီ Security Guard ရှိသည်။
+   GEU Campus 5 ခုရှိသည့်အပြင် ၂၄ နာရီ Security Guard ရှိသည်။
 
 ---
 
@@ -146,4 +163,4 @@ A: Dehradun သည် India ၏ Education City တစ်ခု ဖြစ်သ�
 - Website: www.globalarcus.com
 - Apply Online: https://tinyurl.com/2dj2jefy
 - GEU Official: www.geu.ac.in
-- International Email: intl@geu.ac.in
+- International Email: internationalaffairs@geu.ac.in
