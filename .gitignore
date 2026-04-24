@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+
+# Environment - DO NOT commit real secrets
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cloudflare binary (too large for git)
+cloudflared.exe
+
+# NOTE: chroma_db/ is intentionally NOT ignored
+# It must be committed so Render can use it without rebuilding
