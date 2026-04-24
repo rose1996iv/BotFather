@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import threading
+import time
 
 import requests
 from dotenv import load_dotenv
@@ -35,11 +36,55 @@ VERIFY_TOKEN    = os.getenv("META_VERIFY_TOKEN")
 TELEGRAM_TOKEN  = os.getenv("TELEGRAM_TOKEN")
 # Set APP_URL in Render env vars → e.g. https://geu-university-bot.onrender.com
 APP_URL         = os.getenv("APP_URL", "").rstrip("/")
+ADMIN_SECRET    = os.getenv("ADMIN_SECRET", "geu_admin_2024")  # Set in Render env vars
 
 PROCESSING_MSG  = "ရွာဖွေနေပါတယ်... ခဏစောင့်ပါ။"
+PAUSED_MSG      = "Admin နဲ့ ဆက်သွယ်ဆဲ ဖြစ်ပါတယ်။ ခဏစောင့်ပါ — bot မကြာမီ ပြန်ဖွင့်မည်။"
 ERROR_MSG       = "တောင်းပန်ပါတယ်။ အမှားတစ်ခု ဖြစ်ပွားသွားပါတယ်။ နောက်မှ ထပ်စမ်းကြည့်ပါ။"
 
 TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
+
+# ─── Human Handoff — pause registry ──────────────────────────────────────────
+# {user_id: expiry_timestamp} — in-memory only, resets on redeploy (acceptable)
+
+PAUSE_DURATION_SEC = 30 * 60   # 30 minutes default
+
+_paused_users: dict = {}
+_pause_lock = threading.Lock()
+
+
+def pause_user(user_id: str, duration: int = PAUSE_DURATION_SEC) -> None:
+    with _pause_lock:
+        _paused_users[user_id] = time.time() + duration
+    logger.info("Bot PAUSED for user %s (%d min)", user_id, duration // 60)
+
+
+def resume_user(user_id: str) -> None:
+    with _pause_lock:
+        _paused_users.pop(user_id, None)
+    logger.info("Bot RESUMED for user %s", user_id)
+
+
+def is_paused(user_id: str) -> bool:
+    with _pause_lock:
+        expiry = _paused_users.get(user_id)
+        if expiry is None:
+            return False
+        if time.time() > expiry:
+            _paused_users.pop(user_id, None)
+            logger.info("Auto-resumed user %s (30 min timeout)", user_id)
+            return False
+        return True
+
+
+def _get_paused_status() -> dict:
+    """Return currently active paused users (auto-cleans expired)."""
+    now = time.time()
+    with _pause_lock:
+        expired = [uid for uid, exp in _paused_users.items() if now > exp]
+        for uid in expired:
+            del _paused_users[uid]
+        return {uid: f"{int(exp - now)}s remaining" for uid, exp in _paused_users.items()}
 
 
 # ─── Telegram helpers (pure requests, no library) ─────────────────────────────
@@ -181,7 +226,48 @@ def health():
         "messenger": bool(PAGE_TOKEN),
         "telegram": bool(TELEGRAM_TOKEN),
         "app_url": APP_URL or "not set",
+        "paused_users": len(_get_paused_status()),
     }), 200
+
+
+# ── Admin control endpoints ────────────────────────────────────────────────────
+
+def _check_admin(req) -> bool:
+    token = req.args.get("token") or req.get_json(silent=True, force=True, cache=False, skip_none=True) and req.json.get("token")
+    return token == ADMIN_SECRET
+
+
+@app.route("/admin/status", methods=["GET"])
+def admin_status():
+    """GET /admin/status?token=SECRET — list paused users."""
+    if request.args.get("token") != ADMIN_SECRET:
+        return jsonify({"error": "unauthorized"}), 403
+    return jsonify({"paused": _get_paused_status()}), 200
+
+
+@app.route("/admin/pause", methods=["POST"])
+def admin_pause():
+    """POST /admin/pause?token=SECRET&user_id=xxx&minutes=30 — pause bot for a user."""
+    if request.args.get("token") != ADMIN_SECRET:
+        return jsonify({"error": "unauthorized"}), 403
+    user_id = request.args.get("user_id") or (request.get_json(silent=True) or {}).get("user_id")
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    minutes = int(request.args.get("minutes", 30))
+    pause_user(user_id, duration=minutes * 60)
+    return jsonify({"paused": user_id, "duration_min": minutes}), 200
+
+
+@app.route("/admin/resume", methods=["POST"])
+def admin_resume():
+    """POST /admin/resume?token=SECRET&user_id=xxx — resume bot for a user."""
+    if request.args.get("token") != ADMIN_SECRET:
+        return jsonify({"error": "unauthorized"}), 403
+    user_id = request.args.get("user_id") or (request.get_json(silent=True) or {}).get("user_id")
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    resume_user(user_id)
+    return jsonify({"resumed": user_id}), 200
 
 
 # ── Messenger webhook ──────────────────────────────────────────────────────────
@@ -203,18 +289,41 @@ def fb_webhook():
     if data.get("object") != "page":
         return "OK", 200
     for entry in data.get("entry", []):
+        page_id = entry.get("id")
         for event in entry.get("messaging", []):
-            sender_id = event.get("sender", {}).get("id")
-            if sender_id == entry.get("id"):
+            sender_id   = event.get("sender", {}).get("id")
+            recipient_id = event.get("recipient", {}).get("id")
+            msg = event.get("message", {})
+
+            # ── Detect admin manual reply (echo with no app_id) ──────────────
+            if msg.get("is_echo"):
+                app_id = msg.get("app_id")
+                # app_id is absent/null = admin typed manually in Page inbox
+                if not app_id:
+                    # recipient_id is the actual user being chatted with
+                    user_id = recipient_id
+                    if user_id and user_id != page_id:
+                        pause_user(user_id)
+                        logger.info("Admin replied to %s → bot paused 30 min", user_id)
+                continue  # never process echo as incoming message
+
+            if not msg or sender_id == page_id:
                 continue
-            if "message" not in event or event["message"].get("is_echo"):
+
+            text = msg.get("text", "").strip()
+            if not text:
                 continue
-            text = event["message"].get("text", "").strip()
-            if text:
-                logger.info("Messenger ← %s: %s", sender_id, text)
-                threading.Thread(
-                    target=_messenger_reply, args=(sender_id, text), daemon=True
-                ).start()
+
+            logger.info("Messenger ← %s: %s", sender_id, text)
+
+            # ── Paused: admin is handling this conversation ───────────────────
+            if is_paused(sender_id):
+                fb_send_text(sender_id, PAUSED_MSG)
+                continue
+
+            threading.Thread(
+                target=_messenger_reply, args=(sender_id, text), daemon=True
+            ).start()
     return "OK", 200
 
 
