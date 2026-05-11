@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from agent import ask, ADMISSION_LINK
+from agent import ask, ADMISSION_LINK, should_offer_geu_cta
 
 app = Flask(__name__)
 
@@ -184,7 +184,8 @@ def _messenger_reply(sender_id: str, question: str) -> None:
         fb_send_text(sender_id, PROCESSING_MSG)
         raw = ask(question)
         fb_send_text(sender_id, clean_for_messenger(raw))
-        fb_send_cta(sender_id)
+        if should_offer_geu_cta(question):
+            fb_send_cta(sender_id)
     except Exception:
         logger.exception("Messenger reply error")
         fb_send_text(sender_id, ERROR_MSG)
@@ -194,7 +195,7 @@ def _telegram_reply(chat_id: int, question: str) -> None:
     try:
         tg_send(chat_id, "🔍 ရွာဖွေနေပါတယ်... ခဏစောင့်ပါ။")
         raw = ask(question)
-        tg_send(chat_id, raw, with_button=True)
+        tg_send(chat_id, raw, with_button=should_offer_geu_cta(question))
     except Exception:
         logger.exception("Telegram reply error")
         tg_send(chat_id, ERROR_MSG)

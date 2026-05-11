@@ -34,9 +34,52 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 CHUNKS_FILE = BASE_DIR / "chunks.json"
-CHAT_MODEL = "llama-3.3-70b-versatile"   # Main response model
-FAST_MODEL = "llama-3.1-8b-instant"       # Fast translation model
+CHAT_MODEL = "llama-3.3-70b-versatile"
+FAST_MODEL = "llama-3.1-8b-instant"
 ADMISSION_LINK = "https://tinyurl.com/2dj2jefy"
+
+UNIVERSITY_ALIASES = {
+    "GEU": (
+        "graphic era university",
+        "graphic era",
+        "geu",
+        "graphic era deemed to be university",
+    ),
+    "GEHU": (
+        "graphic era hill university",
+        "gehu",
+    ),
+    "Royal Global University": (
+        "royal global university",
+        "royal global",
+        "rgu",
+    ),
+    "Rungta International Skills University": (
+        "rungta international skills university",
+        "rungta university",
+        "rungta",
+    ),
+    "SR University": (
+        "sr university",
+    ),
+    "NIST University": (
+        "nist university",
+        "nist",
+    ),
+    "Khalsa College of Engineering & Technology": (
+        "khalsa college of engineering",
+        "khalsa college",
+        "khalsa",
+    ),
+    "Gulzar Group of Institutes": (
+        "gulzar group of institutes",
+        "ggi",
+        "gulzar",
+    ),
+    "DBU": (
+        "dbu",
+    ),
+}
 
 SUBJECT_QUERY_TERMS = (
     "\u1018\u102c\u101e\u102c",
@@ -140,61 +183,86 @@ MM_EN_MAP = {
     "\u101e\u1004\u103a\u101e\u1014\u103a\u1021\u1001\u103a\u1021\u101c\u1031\u1015\u103a": "contact information website",
 }
 
-SYSTEM_PROMPT = f"""You are a friendly Global Arcus Ambassador helping Myanmar students join Graphic Era University (GEU), India.
+BASE_SYSTEM_PROMPT = """
+You are a friendly university admission assistant helping Myanmar students.
 
 LANGUAGE RULE:
 Write in BILINGUAL style: Myanmar (Burmese) sentences with English technical terms inline.
-NATURAL pattern: "CSE Department ကတော့ computer science နဲ့ software engineering ကို သင်ကြားပေးပါတယ်"
 NEVER write full Myanmar translations for: Tuition, Scholarship, Hostel, Semester, Campus, Department, Admission, Uniform, CGPA, GPA, Fee, Visa, Passport
-Always keep numbers, amounts (USD), and proper nouns in English.
+Always keep numbers, durations, and proper nouns in English.
 
 TONE:
-- Warm, like an older sibling who studied at GEU
-- Enthusiastic but honest — never oversell
+- Warm and helpful
+- Enthusiastic but honest
 - Conversational Myanmar (not formal/stiff)
-- Emojis: 1-2 max per response (🎓 ✅ 💰 🌟)
+- Emojis: 1-2 max per response
 
-RESPONSE FORMAT — BE CONCISE (max 4-6 sentences or bullet points):
-- Answer the question directly first
-- Use bullet points for lists of info
-- Short sentences
-- No filler phrases like "ကျွန်တော် ဒီနေ့ ဖြေပေးပါမယ်"
-
-EXAMPLE — Good response:
-Q: CSE ကျောင်းကြေး ဘယ်လောက်လဲ?
-A: 💰 CSE Tuition fee ကတော့ USD 2,310 per year ပါ။
-- Uniform fee: USD 250 (ပထမနှစ်တစ်ကြိမ်သာ)
-- Scholarship ရရင် Hostel + food + living expenses FREE
-- Global Arcus Program ကတော့ Scholarship ပါတဲ့ Package ဖြင့် Admission လုပ်ပေးပါတယ်
-
-EXAMPLE — Bad response (too long, too formal, avoid this):
-"ကျောင်းသားများ အားလုံးကို ကြိုဆိုပါသည်... GEU သည် ကောင်းမွန်သောတက္ကသိုလ်တစ်ခုဖြစ်ပြီး..."
-
-VERIFIED FACTS (use exactly, never change these numbers):
-- Tuition: USD 2,310 per year
-- Uniform fee: USD 250 (first year only, one-time payment)
-- Scholarship: Hostel + food + living expenses = 100% FREE
-- Admission deadline: end of July each year
-- GEU International contact: internationalaffairs@geu.ac.in
-- Global Arcus contact: +918810366357
+RESPONSE FORMAT:
+- Answer directly first
+- Use short bullet points for lists
+- Keep it concise
+- No filler
 
 CONTEXT RULE:
 - Use provided context first
-- If the context explicitly shows that a Department or Program exists at GEU, never say it does not exist
+- If the context explicitly shows that a Department or Program exists, never say it does not exist
 - For "what subjects are taught" questions, prefer curriculum/modules/courses from context over faculty biography details
-- If unsure about something specific: "ဒီအချက်ကို www.geu.ac.in မှာ တိုက်ရိုက် စစ်ဆေးပါ"
+- If a specific detail is missing, tell the user to check the official website directly
 - Never invent facts or numbers
-
-MANDATORY CTA (always end response with exactly this, on its own line):
-👉 Apply Now: {ADMISSION_LINK}
 """
 
 _runtime = None
 _runtime_lock = Lock()
 
 
-def _tokenize(text: str) -> list:
+def _tokenize(text: str) -> list[str]:
     return text.lower().split()
+
+
+def _infer_target_university(text: str) -> str | None:
+    text_lower = text.lower()
+    for university, aliases in UNIVERSITY_ALIASES.items():
+        if any(alias in text_lower for alias in aliases):
+            return university
+    return None
+
+
+def should_offer_geu_cta(question: str) -> bool:
+    target = _infer_target_university(question)
+    return target in (None, "GEU")
+
+
+def _build_system_prompt(target_university: str | None) -> str:
+    if target_university in (None, "GEU"):
+        return (
+            BASE_SYSTEM_PROMPT
+            + f"""
+
+FOCUS:
+- Primary focus is Graphic Era University (GEU) unless the user explicitly asks about another university
+- If the answer is about GEU, you may use these verified facts exactly:
+  - Tuition: USD 2,310 per year
+  - Uniform fee: USD 250 (first year only, one-time payment)
+  - Scholarship: Hostel + food + living expenses = 100% FREE
+  - Admission deadline: end of July each year
+  - GEU International contact: internationalaffairs@geu.ac.in
+  - Global Arcus contact: +918810366357
+- If the answer is about GEU, end with exactly this line:
+👉 Apply Now: {ADMISSION_LINK}
+"""
+        )
+
+    return (
+        BASE_SYSTEM_PROMPT
+        + f"""
+
+FOCUS:
+- The user is asking about {target_university}
+- Answer only from provided context about {target_university}
+- Do not insert GEU tuition, GEU scholarship, GEU contacts, GEU website, or GEU apply link unless the user explicitly asks to compare with GEU
+- Do not add any apply link unless it is explicitly present in the provided context for {target_university}
+"""
+    )
 
 
 def _initialize_runtime():
@@ -218,12 +286,13 @@ def _initialize_runtime():
         chunks = json.load(f)
 
     texts = [c["text"] for c in chunks]
+    sources = [c.get("source", "") for c in chunks]
     tokenized = [_tokenize(t) for t in texts]
     bm25 = BM25Okapi(tokenized)
     logger.info("BM25 index built: %d chunks", len(chunks))
 
     client = Groq(api_key=api_key)
-    return {"bm25": bm25, "texts": texts, "client": client}
+    return {"bm25": bm25, "texts": texts, "sources": sources, "client": client}
 
 
 def _get_runtime():
@@ -258,7 +327,6 @@ def _translate_query(question: str) -> str:
     Fast (~0.3s), free tier, dramatically improves BM25 retrieval recall.
     Falls back to original question on any error.
     """
-    # Skip translation if question is already mostly English
     myanmar_char_count = sum(1 for c in question if "\u1000" <= c <= "\u109f")
     if myanmar_char_count < 3:
         return question
@@ -283,34 +351,22 @@ def _translate_query(question: str) -> str:
         )
         translated = resp.choices[0].message.content.strip()
         logger.info("Query translated: '%s' -> '%s'", question[:30], translated[:50])
-        # Return combined: both Myanmar+English for maximum BM25 coverage
         return f"{question} {translated}"
     except Exception:
         logger.warning("Query translation failed, using original", exc_info=True)
         return question
 
 
-def _bm25_search(question: str, k: int = 6) -> str:
-    """
-    Two-stage retrieval pipeline:
-      Stage 1: keyword expand  (dictionary, instant)
-      Stage 2: LLM translate   (fast model, ~0.3s)
-      Stage 3: BM25 search     (in-memory, instant)
-    """
-    expanded = _keyword_expand(question)
-    search_query = _translate_query(expanded)
-
-    runtime = _get_runtime()
-    scores = runtime["bm25"].get_scores(_tokenize(search_query))
-    top_texts = _rank_chunks(question, runtime["texts"], scores, k=k)
-    logger.info("BM25 retrieved %d chunks", len(top_texts))
-    return "\n\n".join(top_texts)
+def _source_matches_university(source: str, aliases: tuple[str, ...]) -> bool:
+    source_lower = source.lower().replace("-", " ").replace("_", " ")
+    return any(alias in source_lower for alias in aliases)
 
 
-def _rank_chunks(question: str, texts: list[str], scores, k: int = 6) -> list[str]:
+def _rank_chunks(question: str, texts: list[str], sources: list[str], scores, k: int = 6) -> list[str]:
     question_lower = question.lower()
     wants_subjects = any(term in question_lower for term in SUBJECT_QUERY_TERMS)
     asks_existence = any(term in question_lower for term in EXISTENCE_QUERY_TERMS)
+    target_university = _infer_target_university(question)
 
     ranked = []
     for idx, base_score in enumerate(scores):
@@ -318,6 +374,7 @@ def _rank_chunks(question: str, texts: list[str], scores, k: int = 6) -> list[st
             continue
 
         text = texts[idx]
+        source = sources[idx]
         text_lower = text.lower()
         bonus = 0.0
 
@@ -327,6 +384,15 @@ def _rank_chunks(question: str, texts: list[str], scores, k: int = 6) -> list[st
             bonus += 2.0
         if "aerospace" in question_lower and "aerospace" in text_lower:
             bonus += 1.0
+
+        if target_university:
+            aliases = UNIVERSITY_ALIASES[target_university]
+            if any(alias in text_lower for alias in aliases) or _source_matches_university(source, aliases):
+                bonus += 4.0
+            if target_university != "GEU":
+                geu_aliases = UNIVERSITY_ALIASES["GEU"]
+                if any(alias in text_lower for alias in geu_aliases) or _source_matches_university(source, geu_aliases):
+                    bonus -= 2.0
 
         ranked.append((base_score + bonus, idx, text))
 
@@ -345,10 +411,34 @@ def _rank_chunks(question: str, texts: list[str], scores, k: int = 6) -> list[st
     return unique_texts
 
 
-def _web_search(question: str) -> str:
+def _bm25_search(question: str, k: int = 6) -> str:
+    """
+    Two-stage retrieval pipeline:
+      Stage 1: keyword expand  (dictionary, instant)
+      Stage 2: LLM translate   (fast model, ~0.3s)
+      Stage 3: BM25 search     (in-memory, instant)
+    """
+    expanded = _keyword_expand(question)
+    search_query = _translate_query(expanded)
+
+    runtime = _get_runtime()
+    scores = runtime["bm25"].get_scores(_tokenize(search_query))
+    top_texts = _rank_chunks(
+        question,
+        runtime["texts"],
+        runtime["sources"],
+        scores,
+        k=k,
+    )
+    logger.info("BM25 retrieved %d chunks", len(top_texts))
+    return "\n\n".join(top_texts)
+
+
+def _web_search(question: str, target_university: str | None = None) -> str:
     """DuckDuckGo Instant Answers API - stdlib only, no extra library."""
     try:
-        q = urllib.parse.quote(f"Graphic Era University GEU {question}")
+        prefix = target_university or "university admission"
+        q = urllib.parse.quote(f"{prefix} {question}")
         url = f"https://api.duckduckgo.com/?q={q}&format=json&no_html=1&skip_disambig=1"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=5) as resp:
@@ -356,13 +446,13 @@ def _web_search(question: str) -> str:
         texts = []
         if data.get("AbstractText"):
             texts.append(data["AbstractText"])
-        for r in data.get("RelatedTopics", [])[:4]:
-            if isinstance(r, dict) and r.get("Text"):
-                texts.append(r["Text"])
-        result = "\n\n".join(texts)
-        if result:
+        for result in data.get("RelatedTopics", [])[:4]:
+            if isinstance(result, dict) and result.get("Text"):
+                texts.append(result["Text"])
+        combined = "\n\n".join(texts)
+        if combined:
             logger.info("Web search returned %d snippets", len(texts))
-        return result
+        return combined
     except Exception:
         logger.warning("Web search failed", exc_info=True)
         return ""
@@ -370,18 +460,18 @@ def _web_search(question: str) -> str:
 
 def ask(question: str) -> str:
     try:
-        # Step 1: BM25 retrieval with query translation
+        target_university = _infer_target_university(question)
+
         local_context = _bm25_search(question)
 
-        # Step 2: Web search fallback if context is thin
         web_context = ""
         if len(local_context) < 200:
             logger.info("Local context thin - running web search")
-            web_context = _web_search(question)
+            web_context = _web_search(question, target_university=target_university)
 
         context_parts = []
         if local_context:
-            context_parts.append(f"[From GEU Knowledge Base]\n{local_context}")
+            context_parts.append(f"[From University Knowledge Base]\n{local_context}")
         if web_context:
             context_parts.append(f"[From Web Search]\n{web_context}")
         context = "\n\n".join(context_parts) or "No context found."
@@ -390,7 +480,7 @@ def ask(question: str) -> str:
         response = runtime["client"].chat.completions.create(
             model=CHAT_MODEL,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": _build_system_prompt(target_university)},
                 {
                     "role": "user",
                     "content": f"Context:\n{context}\n\nQuestion: {question}",

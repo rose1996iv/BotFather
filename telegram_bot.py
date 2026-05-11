@@ -2,7 +2,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -16,8 +16,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import after logging setup
-from agent import ask, ADMISSION_LINK
+from agent import ADMISSION_LINK, ask, should_offer_geu_cta
 
 WELCOME_MESSAGE = (
     "မင်္ဂလာပါ! 🎓 ကျွန်တော်က *Graphic Era University (GEU)* Admission Ambassador Bot ဖြစ်ပါတယ်။\n\n"
@@ -27,7 +26,7 @@ WELCOME_MESSAGE = (
     "✅ Campus Life\n\n"
     "မည်သည့် မေးခွန်းမဆို မြန်မာဘာသာဖြင့် မေးနိုင်ပါတယ်! 👇"
 )
-PROCESSING_MESSAGE = "🔍 ရွာဖွေနေပါတယ်... ခဏစောင့်ပါ။"
+PROCESSING_MESSAGE = "🔍 ရှာဖွေနေပါတယ်... ခဏစောင့်ပါ။"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -48,10 +47,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     answer = ask(question)
 
-    # Send main answer with Markdown rendering
-    # Telegram supports: *bold*, _italic_, `code`, [text](url)
-    keyboard = [[InlineKeyboardButton("Apply Now 🎓", url=ADMISSION_LINK)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = None
+    if should_offer_geu_cta(question):
+        keyboard = [[InlineKeyboardButton("Apply Now 🎓", url=ADMISSION_LINK)]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
         await update.message.reply_text(
@@ -61,7 +60,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True,
         )
     except Exception:
-        # Fallback: send without Markdown if parsing fails
         await update.message.reply_text(answer, reply_markup=reply_markup)
 
 
