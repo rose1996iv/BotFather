@@ -38,6 +38,52 @@ CHAT_MODEL = "llama-3.3-70b-versatile"   # Main response model
 FAST_MODEL = "llama-3.1-8b-instant"       # Fast translation model
 ADMISSION_LINK = "https://tinyurl.com/2dj2jefy"
 
+SUBJECT_QUERY_TERMS = (
+    "\u1018\u102c\u101e\u102c",
+    "\u101e\u1004\u103a\u1000\u103c\u102c\u1038",
+    "subject",
+    "subjects",
+    "curriculum",
+    "course",
+    "courses",
+    "module",
+    "modules",
+    "teach",
+    "taught",
+)
+
+EXISTENCE_QUERY_TERMS = (
+    "\u101b\u103e\u102d\u101c\u102c\u1038",
+    "\u101b\u103e\u102d",
+    "available",
+    "offer",
+    "offered",
+    "department",
+    "program",
+    "programs",
+)
+
+CURRICULUM_HINTS = (
+    "curriculum",
+    "curriculum modules",
+    "courses offered",
+    "specialized courses",
+    "topics",
+    "subjects",
+    "aerodynamics",
+    "flight mechanics",
+    "drone technology",
+)
+
+PROGRAM_HINTS = (
+    "programs offered",
+    "courses offered",
+    "department of",
+    "b.tech",
+    "ph.d",
+    "specializations offered",
+)
+
 # ---------------------------------------------------------------------------
 # Myanmar -> English keyword expansion map
 # Covers the most common terms Myanmar students use when asking about GEU.
@@ -134,6 +180,8 @@ VERIFIED FACTS (use exactly, never change these numbers):
 
 CONTEXT RULE:
 - Use provided context first
+- If the context explicitly shows that a Department or Program exists at GEU, never say it does not exist
+- For "what subjects are taught" questions, prefer curriculum/modules/courses from context over faculty biography details
 - If unsure about something specific: "ဒီအချက်ကို www.geu.ac.in မှာ တိုက်ရိုက် စစ်ဆေးပါ"
 - Never invent facts or numbers
 
@@ -254,10 +302,47 @@ def _bm25_search(question: str, k: int = 6) -> str:
 
     runtime = _get_runtime()
     scores = runtime["bm25"].get_scores(_tokenize(search_query))
-    top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
-    top_texts = [runtime["texts"][i] for i in top_indices if scores[i] > 0]
+    top_texts = _rank_chunks(question, runtime["texts"], scores, k=k)
     logger.info("BM25 retrieved %d chunks", len(top_texts))
     return "\n\n".join(top_texts)
+
+
+def _rank_chunks(question: str, texts: list[str], scores, k: int = 6) -> list[str]:
+    question_lower = question.lower()
+    wants_subjects = any(term in question_lower for term in SUBJECT_QUERY_TERMS)
+    asks_existence = any(term in question_lower for term in EXISTENCE_QUERY_TERMS)
+
+    ranked = []
+    for idx, base_score in enumerate(scores):
+        if base_score <= 0:
+            continue
+
+        text = texts[idx]
+        text_lower = text.lower()
+        bonus = 0.0
+
+        if wants_subjects and any(hint in text_lower for hint in CURRICULUM_HINTS):
+            bonus += 3.0
+        if asks_existence and any(hint in text_lower for hint in PROGRAM_HINTS):
+            bonus += 2.0
+        if "aerospace" in question_lower and "aerospace" in text_lower:
+            bonus += 1.0
+
+        ranked.append((base_score + bonus, idx, text))
+
+    ranked.sort(key=lambda item: item[0], reverse=True)
+
+    unique_texts = []
+    seen = set()
+    for _, _, text in ranked:
+        normalized = " ".join(text.split()).lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_texts.append(text)
+        if len(unique_texts) >= k:
+            break
+    return unique_texts
 
 
 def _web_search(question: str) -> str:

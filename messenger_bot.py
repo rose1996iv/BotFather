@@ -128,11 +128,11 @@ def clean_for_messenger(text: str) -> str:
     text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
     text = re.sub(r"\*(.*?)\*", r"\1", text)
     text = re.sub(r"\n---+\n?", "\n", text)
-    text = re.sub(
-        r"🚀.*?" + re.escape(ADMISSION_LINK) + r"\s*",
-        "", text, flags=re.DOTALL,
-    )
-    return text.replace(ADMISSION_LINK, "").strip()
+    text = re.sub(r"(?im)^[^\S\r\n]*.*Apply Now:.*(?:\r?\n|$)", "", text)
+    text = text.replace(ADMISSION_LINK, "")
+    text = re.sub(r"(?m)^[^\w\s]{1,4}\s*$", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def fb_send_text(recipient_id: str, text: str) -> None:
@@ -233,7 +233,11 @@ def health():
 # ── Admin control endpoints ────────────────────────────────────────────────────
 
 def _check_admin(req) -> bool:
-    token = req.args.get("token") or req.get_json(silent=True, force=True, cache=False, skip_none=True) and req.json.get("token")
+    token = req.args.get("token")
+    if token:
+        return token == ADMIN_SECRET
+    payload = req.get_json(silent=True) or {}
+    token = payload.get("token")
     return token == ADMIN_SECRET
 
 

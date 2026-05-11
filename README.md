@@ -195,6 +195,17 @@ Callback URL:  https://geu-university-bot.onrender.com/webhook
 Verify Token:  univ_bot_verify_2024
 ```
 
+### Messenger Public Reply Checklist
+
+If Messenger replies only work for the Page admin, the most likely issue is **Meta App configuration**, not Python code.
+
+- Switch the Meta app from **Development** to **Live** mode
+- Make sure the app has the required Messenger / Page permissions reviewed for public users, especially `pages_messaging`
+- Re-subscribe the Page to the webhook after token / permission changes if needed
+- Test again with a normal Facebook user account that does **not** have an app role
+
+While the app is still in Development mode, only app-role users such as admins, developers, or testers can usually talk to the bot.
+
 ### Telegram Webhook
 
 Auto-registered at startup using `APP_URL`. No manual setup needed.
