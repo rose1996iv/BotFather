@@ -1,6 +1,6 @@
-# 🎓 GEU University Chatbot — BotFather
+# 🎓 University Admission Chatbot — BotFather
 
-> AI-powered university admission assistant for **Graphic Era University (GEU)**, built specifically for Myanmar students. Responds in bilingual Myanmar+English style across **Messenger** and **Telegram** using RAG with multilingual query translation.
+> AI-powered university admission assistant for Myanmar students. Supports **GEU** plus other uploaded university documents, and responds in bilingual Myanmar+English style across **Messenger** and **Telegram** using RAG with multilingual query translation.
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)](https://python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.1-green?logo=flask)](https://flask.palletsprojects.com)
@@ -16,11 +16,11 @@
 |---|---|
 | 🇲🇲 Bilingual Responses | Myanmar sentences + English technical terms inline |
 | 🔄 Query Translation | Myanmar → English before BM25 retrieval (llama-3.1-8b-instant) |
-| 📚 Knowledge Base | GEU PDFs + Visa guide + Myanmar student case studies (3000+ chunks) |
+| 📚 Knowledge Base | GEU PDFs + other uploaded university PDFs + guidance docs |
 | 🔍 BM25 Retrieval | Keyword search, ~10 MB RAM (vs 470 MB for sentence-transformers) |
 | 🌐 Web Search Fallback | DuckDuckGo via stdlib `urllib` — no extra library needed |
 | 🤖 Dual Platform | Facebook Messenger webhook + Telegram webhook (no polling thread) |
-| 🎯 CTA Button | Every response ends with clickable "Apply Now" |
+| 🎯 CTA Logic | GEU answers can include Apply CTA; all answers can guide users to contact admin |
 | 👤 Human Handoff | Admin can take over conversation; bot auto-pauses/resumes |
 | 🚀 Cloud Deployed | Render.com free tier + UptimeRobot keep-alive |
 
@@ -44,9 +44,9 @@ User Message (Myanmar)
         │
         ├─ Stage 4: Web Search fallback (if context < 200 chars)
         │
-        └─ Stage 5: llama-3.3-70b-versatile → Bilingual response + CTA
-                    Messenger: clean text + Button Template
-                    Telegram:  Markdown + InlineKeyboard button
+        └─ Stage 5: llama-3.3-70b-versatile → Bilingual response + dynamic CTA
+                    GEU: admin CTA + Apply button/link
+                    Non-GEU: admin CTA only
 ```
 
 ---
@@ -88,7 +88,7 @@ All endpoints secured by `ADMIN_SECRET` env var.
 
 | Source | Content |
 |---|---|
-| `pdfs/` | 22 GEU Department Brochures (CSE, ECE, MBA, Law, Nursing, Design, etc.) |
+| `pdfs/` | GEU department brochures + uploaded course-list PDFs from other universities |
 | `data/visa_and_travel.md` | Student Visa documents, Embassy contacts, Myanmar→India travel guide, FRRO registration |
 | `data/global_arcus_case_studies.md` | Real student case studies (Ko Peter, Ko Peng, Ko Thang, Ma Ngun), Batch stats, FAQ |
 

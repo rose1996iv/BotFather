@@ -13,6 +13,7 @@ Memory: ~100 MB (safe for Render free 512 MB tier)
 import json
 import logging
 import os
+import re
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -37,6 +38,7 @@ CHUNKS_FILE = BASE_DIR / "chunks.json"
 CHAT_MODEL = "llama-3.3-70b-versatile"
 FAST_MODEL = "llama-3.1-8b-instant"
 ADMISSION_LINK = "https://tinyurl.com/2dj2jefy"
+ADMIN_CTA_LINE = "💬 အသေးစိတ်ထပ်မေးချင်ရင် Page Admin / Admin Team ကို တိုက်ရိုက် message ပို့ပြီး ဆက်သွယ်နိုင်ပါတယ်။"
 
 UNIVERSITY_ALIASES = {
     "GEU": (
@@ -261,6 +263,8 @@ FOCUS:
 - Answer only from provided context about {target_university}
 - Do not insert GEU tuition, GEU scholarship, GEU contacts, GEU website, or GEU apply link unless the user explicitly asks to compare with GEU
 - Do not add any apply link unless it is explicitly present in the provided context for {target_university}
+- If fee, scholarship, hostel, accommodation, contact, or website details are not explicitly present in the context, say they are not found in the current documents and ask the user to check the official website or message Page Admin / Admin Team
+- Do not guess tuition, scholarship, free accommodation, or contact details
 """
     )
 
@@ -362,6 +366,12 @@ def _source_matches_university(source: str, aliases: tuple[str, ...]) -> bool:
     return any(alias in source_lower for alias in aliases)
 
 
+def _chunk_matches_target(text: str, source: str, target_university: str) -> bool:
+    aliases = UNIVERSITY_ALIASES[target_university]
+    text_lower = text.lower()
+    return any(alias in text_lower for alias in aliases) or _source_matches_university(source, aliases)
+
+
 def _rank_chunks(question: str, texts: list[str], sources: list[str], scores, k: int = 6) -> list[str]:
     question_lower = question.lower()
     wants_subjects = any(term in question_lower for term in SUBJECT_QUERY_TERMS)
@@ -395,6 +405,14 @@ def _rank_chunks(question: str, texts: list[str], sources: list[str], scores, k:
                     bonus -= 2.0
 
         ranked.append((base_score + bonus, idx, text))
+
+    if target_university:
+        target_ranked = [
+            item for item in ranked
+            if _chunk_matches_target(item[2], sources[item[1]], target_university)
+        ]
+        if target_ranked:
+            ranked = target_ranked
 
     ranked.sort(key=lambda item: item[0], reverse=True)
 
@@ -458,6 +476,22 @@ def _web_search(question: str, target_university: str | None = None) -> str:
         return ""
 
 
+def _strip_generated_cta(text: str) -> str:
+    text = re.sub(r"(?im)^[^\S\r\n]*.*Apply Now:.*(?:\r?\n|$)", "", text)
+    text = text.replace(ADMISSION_LINK, "")
+    text = re.sub(r"(?im)^[^\S\r\n]*.*Page Admin / Admin Team.*(?:\r?\n|$)", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _finalize_answer(answer: str, target_university: str | None) -> str:
+    cleaned = _strip_generated_cta(answer)
+    suffix_lines = [ADMIN_CTA_LINE]
+    if target_university in (None, "GEU"):
+        suffix_lines.append(f"👉 Apply Now: {ADMISSION_LINK}")
+    return cleaned + "\n" + "\n".join(suffix_lines)
+
+
 def ask(question: str) -> str:
     try:
         target_university = _infer_target_university(question)
@@ -487,10 +521,12 @@ def ask(question: str) -> str:
                 },
             ],
             max_tokens=600,
-            temperature=0.6,
+            temperature=0.2,
         )
         message = response.choices[0].message.content
-        return message.strip() if message else "Sorry, I could not generate a response."
+        if not message:
+            return "Sorry, I could not generate a response."
+        return _finalize_answer(message.strip(), target_university)
 
     except RuntimeError as exc:
         logger.error("Failed to answer: %s", exc)

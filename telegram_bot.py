@@ -19,23 +19,19 @@ logger = logging.getLogger(__name__)
 from agent import ADMISSION_LINK, ask, should_offer_geu_cta
 
 WELCOME_MESSAGE = (
-    "မင်္ဂလာပါ! 🎓 ကျွန်တော်က *Graphic Era University (GEU)* Admission Ambassador Bot ဖြစ်ပါတယ်။\n\n"
-    "✅ Admission အကြောင်း\n"
-    "✅ Tuition & Scholarship\n"
-    "✅ Department & Program များ\n"
-    "✅ Campus Life\n\n"
-    "မည်သည့် မေးခွန်းမဆို မြန်မာဘာသာဖြင့် မေးနိုင်ပါတယ်! 👇"
+    "မင်္ဂလာပါ! 🎓 University Admission Bot ဖြစ်ပါတယ်။\n\n"
+    "✅ GEU နဲ့ other university course info\n"
+    "✅ Department, Program, Duration\n"
+    "✅ Admission guidance\n\n"
+    "မြန်မာဘာသာဖြင့် မေးနိုင်ပါတယ်။ အသေးစိတ်ထပ်မေးချင်ရင် Admin Team ကိုလည်း တိုက်ရိုက် message ပို့နိုင်ပါတယ်။"
 )
 PROCESSING_MESSAGE = "🔍 ရှာဖွေနေပါတယ်... ခဏစောင့်ပါ။"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[InlineKeyboardButton("Apply Now 🎓", url=ADMISSION_LINK)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
         WELCOME_MESSAGE,
         parse_mode="Markdown",
-        reply_markup=reply_markup,
     )
 
 
@@ -49,7 +45,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = None
     if should_offer_geu_cta(question):
-        keyboard = [[InlineKeyboardButton("Apply Now 🎓", url=ADMISSION_LINK)]]
+        keyboard = [[InlineKeyboardButton("Apply GEU 🎓", url=ADMISSION_LINK)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:

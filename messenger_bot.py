@@ -96,7 +96,7 @@ def tg_send(chat_id: str | int, text: str, with_button: bool = False) -> None:
     if with_button:
         payload["reply_markup"] = {
             "inline_keyboard": [[
-                {"text": "Apply Now 🎓", "url": ADMISSION_LINK}
+                {"text": "Apply GEU 🎓", "url": ADMISSION_LINK}
             ]]
         }
     try:
@@ -155,11 +155,10 @@ def fb_send_cta(recipient_id: str) -> None:
                 "type": "template",
                 "payload": {
                     "template_type": "button",
-                    "text": ("🎓 GEU မှာ သင့်အနာဂတ်ကို စတင်ပါ!\n"
-                             "Scholarship နဲ့ India မှာ တက္ကသိုလ်ပညာသင်ကြားဖို့ "
-                             "ဒီနေ့ပဲ Admission Form ဖြည့်လိုက်ပါ။"),
+                    "text": ("🎓 GEU admission form ဖြည့်လိုက်ပါ။\n"
+                             "အသေးစိတ်ထပ်မေးချင်ရင် Page Admin ကို တိုက်ရိုက် message ပို့နိုင်ပါတယ်။"),
                     "buttons": [{"type": "web_url", "url": ADMISSION_LINK,
-                                 "title": "Apply Now 🎓"}],
+                                 "title": "Apply GEU 🎓"}],
                 },
             }
         },
@@ -207,7 +206,7 @@ def _telegram_reply(chat_id: int, question: str) -> None:
 def index():
     return jsonify({
         "status": "ok",
-        "service": "GEU University Bot",
+        "service": "University Admission Bot",
         "bots": {
             "messenger": "active" if PAGE_TOKEN else "not configured",
             "telegram": "webhook" if TELEGRAM_TOKEN else "not configured",
@@ -348,14 +347,13 @@ def tg_webhook():
 
     if text.startswith("/start"):
         welcome = (
-            "မင်္ဂလာပါ! 🎓 ကျွန်တော်က *Graphic Era University (GEU)* "
-            "Admission Ambassador Bot ဖြစ်ပါတယ်။\n\n"
-            "✅ Admission, Tuition & Scholarship\n"
-            "✅ Department & Program များ\n"
-            "✅ Campus Life\n\n"
-            "မည်သည့်မေးခွန်းမဆို မြန်မာဘာသာဖြင့် မေးနိုင်ပါတယ်! 👇"
+            "မင်္ဂလာပါ! 🎓 University Admission Bot ဖြစ်ပါတယ်။\n\n"
+            "✅ GEU နဲ့ other university course info\n"
+            "✅ Department, Program, Duration\n"
+            "✅ Admission guidance\n\n"
+            "မြန်မာဘာသာဖြင့် မေးနိုင်ပါတယ်။ အသေးစိတ်ထပ်မေးချင်ရင် Page Admin ကိုလည်း တိုက်ရိုက် message ပို့နိုင်ပါတယ်။"
         )
-        tg_send(chat_id, welcome, with_button=True)
+        tg_send(chat_id, welcome, with_button=False)
         return "OK", 200
 
     threading.Thread(
