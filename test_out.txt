@@ -1,0 +1,40 @@
+Q: What is the tuition fee for CSE?
+
+A: 🎓 CSE Department ကတော့ မြန်မာကျောင်းသားတွေကြားမှာ အရမ်းပြိုင်ဆိုင်မှုမြင့်တဲ့ Program တစ်ခုပါ!
+
+💰 ကြေးနှုန်းများ:
+   - Tuition fee: USD 2,310 per year
+   - Uniform fee: USD 250 (ပထမနှစ်တစ်ကြိမ်သာ)
+   - Scholarship ရရင် Hostel + food + living expenses FREE 🌟
+
+🚀 GEU မှာ သင့်အနာဂတ်ကို စတင်ပါ! Scholarship နဲ့ India မှာ တက္ကသိုလ်ပညာသင်ကြားဖို့ ဒီနေ့ပဲ Admission Form ဖြည့်လိုက်ပါ:
+👉 https://tinyurl.com/2dj2jefy
+
+============================================================
+
+Q: How to apply for Global Arcus scholarship?
+
+A: 🎓 မင်္ဂလာပါ! Global Arcus Scholarship အတွက် လျှောက်ထားနည်းကို သိချင်တယ်ဆိုရင်၊ ဒီအချက်တွေ လိုအပ်ပါတယ်။ 
+
+ပထမဆုံးအနေဖြင့်၊ အွန်လိုင်း လျှောက်လွှာ ဖြည့်တင်းရပါမည်။ လျှောက်လွှာ ဖြည့်တင်းရန် လင့်ခ်မှာ ဒီမှာ ရှိပါတယ်။ https://tinyurl.com/2dj2jefy
+
+လျှောက်လွှာ ဖြည့်ပြီးသွာကျမှ၊ လိုအပ်တဲ့ စာတွေ (ဥပမာ - Matriculation Certificate + Passport Copy) တွေကို စီစဉ်ပါ။ 
+
+ထို့နောက်၊ Global Arcus Scholarship Test တွေကို အောင်မြင်ရပါမည်။ ဒီ Test မှာ အင်္ဂလိပ်၊ သင်္ချာ၊ အဆုံးအဖြတ် ပိုင်းတို့ ပါဝင်ပါတယ်။ ဒီ Test ကို ဗုဒ္ဓဟူး သို့မဟုတ် တနင်္ဂနွေနေ့မှာ ပြုလုပ်ပါတယ်။ ၆၀% အထက် ရမှ ဒီ Scholarship ကို ရနိုင်ပါတယ်။ 
+
+ဒီအချက်တွေ လုပ်ဆောင် ပြီးသွာကျမှ၊ Global Arcus Scholarship ကို ရနိုင်ပါတယ်။ ဒီ Scholarship ရရင်၊ တက္ကသိုလ် ပည
+
+============================================================
+
+Q: CSE ကျောင်းကြေး ဘယ်လောက်လဲ?
+
+A: Sorry, something went wrong: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kpxxs5v0f6b93whadnreyy86` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 98243, Requested 2124. Please try again in 5m17.088s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+============================================================
+
+Q: Visa လျှောက်ဖို့ ဘာတွေ လိုမလဲ?
+
+A: Sorry, something went wrong: Error code: 429 - {'error': {'message': 'Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kpxxs5v0f6b93whadnreyy86` service tier `on_demand` on tokens per day (TPD): Limit 100000, Used 98241, Requested 3585. Please try again in 26m17.663999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+============================================================
+
