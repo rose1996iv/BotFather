@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s https://graph.facebook.com/v19.0/me/subscribed_apps?access_token=EAANpXpTt6ZAoBRRYjOhP7OXjyAnYKJbO8YZCtaOHW3xuUPpHNHLM6PnnLYkkzGlhP19eIvnZAeLuJeyWQZBav5iSXn0kUq4nq1v13pZAwqjtjyr4ofk4vVNEKvB1CZBJ1HtbjoJrBLO54VTE6E6PYxLYnvYnSgaoRBX5FmiZBYydeZChjIhEo4OAfIY1Aej7ti4rmvEy0wZDZD)",
+      "Bash(curl -s 'https://graph.facebook.com/v19.0/me?fields=id,name,messaging_feature_review&access_token=EAANpXpTt6ZAoBRRYjOhP7OXjyAnYKJbO8YZCtaOHW3xuUPpHNHLM6PnnLYkkzGlhP19eIvnZAeLuJeyWQZBav5iSXn0kUq4nq1v13pZAwqjtjyr4ofk4vVNEKvB1CZBJ1HtbjoJrBLO54VTE6E6PYxLYnvYnSgaoRBX5FmiZBYydeZChjIhEo4OAfIY1Aej7ti4rmvEy0wZDZD')"
+    ]
+  }
+}

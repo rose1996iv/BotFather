@@ -8,16 +8,18 @@ Architecture:
 No background threads. No polling. Both platforms handled via HTTP webhooks.
 Memory usage: ~100-120 MB (safe for Render free 512 MB tier).
 """
+import csv
 import json
 import logging
 import os
 import re
 import threading
 import time
+from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 
 load_dotenv()
 
@@ -31,18 +33,104 @@ from agent import ask, ADMISSION_LINK, should_offer_geu_cta
 
 app = Flask(__name__)
 
-PAGE_TOKEN      = os.getenv("META_PAGE_TOKEN")
-VERIFY_TOKEN    = os.getenv("META_VERIFY_TOKEN")
-TELEGRAM_TOKEN  = os.getenv("TELEGRAM_TOKEN")
+PAGE_TOKEN          = os.getenv("META_PAGE_TOKEN")
+VERIFY_TOKEN        = os.getenv("META_VERIFY_TOKEN")
+TELEGRAM_TOKEN      = os.getenv("TELEGRAM_TOKEN")
 # Set APP_URL in Render env vars → e.g. https://geu-university-bot.onrender.com
-APP_URL         = os.getenv("APP_URL", "").rstrip("/")
-ADMIN_SECRET    = os.getenv("ADMIN_SECRET", "geu_admin_2024")  # Set in Render env vars
+APP_URL             = os.getenv("APP_URL", "").rstrip("/")
+ADMIN_SECRET        = os.getenv("ADMIN_SECRET", "geu_admin_2024")  # Set in Render env vars
+LOG_CHANNEL_ID      = os.getenv("LOG_CHANNEL_ID", "")             # Telegram admin chat/channel ID for logs
+TELEGRAM_BOT_LINK   = "https://t.me/GEU_Admission_bot"
+LOG_CSV_PATH        = "logs.csv"
 
 PROCESSING_MSG  = "ရွာဖွေနေပါတယ်... ခဏစောင့်ပါ။"
 PAUSED_MSG      = "Admin နဲ့ ဆက်သွယ်ဆဲ ဖြစ်ပါတယ်။ ခဏစောင့်ပါ — bot မကြာမီ ပြန်ဖွင့်မည်။"
 ERROR_MSG       = "တောင်းပန်ပါတယ်။ အမှားတစ်ခု ဖြစ်ပွားသွားပါတယ်။ နောက်မှ ထပ်စမ်းကြည့်ပါ။"
 
 TG_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}" if TELEGRAM_TOKEN else ""
+
+# ─── Data Logging ─────────────────────────────────────────────────────────────
+
+_csv_lock = threading.Lock()
+
+def _log_to_csv(platform: str, user_id: str, username: str,
+                first_name: str, last_name: str, message: str) -> None:
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    row = [timestamp, platform, user_id, username, first_name, last_name, message]
+    try:
+        with _csv_lock:
+            file_exists = os.path.isfile(LOG_CSV_PATH)
+            with open(LOG_CSV_PATH, "a", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    writer.writerow([
+                        "timestamp", "platform", "user_id",
+                        "username", "first_name", "last_name", "message"
+                    ])
+                writer.writerow(row)
+    except Exception:
+        logger.exception("Failed to write CSV log")
+
+
+def _log_to_admin_channel(platform: str, user_id: str, username: str,
+                           first_name: str, message: str) -> None:
+    if not LOG_CHANNEL_ID or not TELEGRAM_TOKEN:
+        return
+    username_str = f"@{username}" if username else "—"
+    # Use plain text to avoid MarkdownV2 escape issues with user-generated content
+    text = (
+        f"📊 [{platform}] New Message\n"
+        f"👤 {first_name} ({username_str})\n"
+        f"🆔 ID: {user_id}\n"
+        f"❓ {message}\n"
+        f"🕐 {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+    )
+    try:
+        requests.post(
+            f"{TG_API}/sendMessage",
+            json={"chat_id": LOG_CHANNEL_ID, "text": text},
+            timeout=10,
+        )
+    except Exception:
+        logger.exception("Failed to send log to admin Telegram channel")
+
+
+def log_message(platform: str, user_id: str, username: str = "",
+                first_name: str = "", last_name: str = "", message: str = "") -> None:
+    """Log to CSV (sync) and Telegram admin channel (async thread)."""
+    _log_to_csv(platform, user_id, username, first_name, last_name, message)
+    threading.Thread(
+        target=_log_to_admin_channel,
+        args=(platform, user_id, username, first_name, message),
+        daemon=True,
+    ).start()
+
+
+def tg_send_admin(text: str) -> None:
+    """Send a plain-text message to the admin Telegram group/channel."""
+    if not LOG_CHANNEL_ID or not TELEGRAM_TOKEN:
+        return
+    try:
+        requests.post(
+            f"{TG_API}/sendMessage",
+            json={"chat_id": LOG_CHANNEL_ID, "text": text},
+            timeout=10,
+        )
+    except Exception:
+        logger.exception("Failed to send admin notification to Telegram")
+
+
+def _notify_admin_messenger(sender_id: str, message: str) -> None:
+    """Forward an incoming Messenger message to the admin Telegram group."""
+    text = (
+        f"📨 MESSENGER — New Message\n"
+        f"🆔 User ID: {sender_id}\n"
+        f"💬 {message}\n\n"
+        f"↩️ Reply from here:\n"
+        f"/reply {sender_id} [your message]"
+    )
+    threading.Thread(target=tg_send_admin, args=(text,), daemon=True).start()
+
 
 # ─── Human Handoff — pause registry ──────────────────────────────────────────
 # {user_id: expiry_timestamp} — in-memory only, resets on redeploy (acceptable)
@@ -185,6 +273,11 @@ def _messenger_reply(sender_id: str, question: str) -> None:
         fb_send_text(sender_id, clean_for_messenger(raw))
         if should_offer_geu_cta(question):
             fb_send_cta(sender_id)
+        fb_send_text(
+            sender_id,
+            f"💬 ပိုမိုကောင်းမွန်တဲ့ experience အတွက် Telegram bot ကို သုံးပါ 👇\n"
+            f"👉 {TELEGRAM_BOT_LINK}"
+        )
     except Exception:
         logger.exception("Messenger reply error")
         fb_send_text(sender_id, ERROR_MSG)
@@ -274,6 +367,44 @@ def admin_resume():
     return jsonify({"resumed": user_id}), 200
 
 
+@app.route("/admin/logs", methods=["GET"])
+def admin_logs():
+    """GET /admin/logs?token=SECRET — download logs.csv file."""
+    if request.args.get("token") != ADMIN_SECRET:
+        return jsonify({"error": "unauthorized"}), 403
+    if not os.path.isfile(LOG_CSV_PATH):
+        return jsonify({"error": "No logs yet"}), 404
+    return send_file(
+        LOG_CSV_PATH,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="bot_logs.csv",
+    )
+
+
+@app.route("/admin/logs/count", methods=["GET"])
+def admin_logs_count():
+    """GET /admin/logs/count?token=SECRET — total message count per platform."""
+    if request.args.get("token") != ADMIN_SECRET:
+        return jsonify({"error": "unauthorized"}), 403
+    if not os.path.isfile(LOG_CSV_PATH):
+        return jsonify({"total": 0, "telegram": 0, "messenger": 0}), 200
+    counts: dict = {"TELEGRAM": 0, "MESSENGER": 0}
+    try:
+        with open(LOG_CSV_PATH, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                platform = row.get("platform", "").upper()
+                counts[platform] = counts.get(platform, 0) + 1
+    except Exception:
+        logger.exception("Failed to read CSV for count")
+    return jsonify({
+        "total": sum(counts.values()),
+        "telegram": counts.get("TELEGRAM", 0),
+        "messenger": counts.get("MESSENGER", 0),
+    }), 200
+
+
 # ── Messenger webhook ──────────────────────────────────────────────────────────
 
 @app.route("/webhook", methods=["GET"])
@@ -319,6 +450,8 @@ def fb_webhook():
                 continue
 
             logger.info("Messenger ← %s: %s", sender_id, text)
+            log_message("MESSENGER", sender_id, "", "", "", text)
+            _notify_admin_messenger(sender_id, text)
 
             # ── Paused: admin is handling this conversation ───────────────────
             if is_paused(sender_id):
@@ -343,7 +476,13 @@ def tg_webhook():
     if not text or not chat_id:
         return "OK", 200
 
-    logger.info("Telegram ← %s: %s", chat_id, text)
+    # Extract user info for logging
+    user        = msg.get("from", {})
+    username    = user.get("username", "")
+    first_name  = user.get("first_name", "")
+    last_name   = user.get("last_name", "")
+
+    logger.info("Telegram ← %s (@%s): %s", chat_id, username or "—", text)
 
     if text.startswith("/start"):
         welcome = (
@@ -355,6 +494,24 @@ def tg_webhook():
         )
         tg_send(chat_id, welcome, with_button=False)
         return "OK", 200
+
+    # ── Admin /reply command — send message back to a Messenger user ──────────
+    if text.startswith("/reply") and LOG_CHANNEL_ID and str(chat_id) == str(LOG_CHANNEL_ID):
+        parts = text.split(" ", 2)
+        if len(parts) < 3:
+            tg_send(chat_id, "❌ Usage: /reply {fb_user_id} {message}")
+            return "OK", 200
+        fb_user_id  = parts[1].strip()
+        reply_text  = parts[2].strip()
+        fb_send_text(fb_user_id, reply_text)
+        pause_user(fb_user_id)
+        tg_send(chat_id,
+                f"✅ Sent to Messenger user {fb_user_id}\n"
+                f"🔇 Bot paused 30 min for this user (human handoff active)")
+        logger.info("Admin replied to Messenger user %s via Telegram", fb_user_id)
+        return "OK", 200
+
+    log_message("TELEGRAM", str(chat_id), username, first_name, last_name, text)
 
     threading.Thread(
         target=_telegram_reply, args=(chat_id, text), daemon=True
