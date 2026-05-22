@@ -217,8 +217,42 @@ _runtime = None
 _runtime_lock = Lock()
 
 
+# Collapse degree abbreviations so "B.Sc" == "BSc" == "bsc", "Ph.D" == "phd".
+# Applied to both the index and the query, so BM25 matching stays consistent.
+_DOT_BETWEEN_LETTERS = re.compile(r"(?<=[a-z])\.(?=[a-z])")
+_TOKEN_SPLIT = re.compile(r"[^a-z0-9က-႟]+")
+
+# Generic/filler words that must NOT count as the "subject" the user asked about.
+# Used to gate the program-existence bonus so an off-topic "Programs Offered"
+# chunk (e.g. Paramedical) cannot answer a question about another subject (Nursing).
+_GENERIC_TOKENS = {
+    "the", "and", "are", "for", "you", "have", "has", "that", "this", "with",
+    "can", "get", "about", "please", "tell", "does", "whether", "there", "any",
+    "all", "available", "offer", "offered", "offers", "offering", "program",
+    "programs", "programme", "programmes", "course", "courses", "subject",
+    "subjects", "curriculum", "department", "departments", "university",
+    "universities", "college", "colleges", "institute", "study", "studies",
+    "degree", "degrees", "bachelor", "bachelors", "master", "masters",
+    "science", "sciences", "arts", "technology", "diploma", "year", "years",
+    "what", "which", "how", "many", "want", "looking", "studying", "general",
+    "medical", "engineering", "management", "health", "hospital", "public",
+    # Degree levels are not "subjects" — Nursing != Paramedical just because both grant a B.Sc.
+    "bsc", "msc", "btech", "mtech", "phd", "mba", "bba", "mca", "bca", "bphil",
+    "mphil", "phil", "basic", "hons", "honours", "honors",
+}
+
+
 def _tokenize(text: str) -> list[str]:
-    return text.lower().split()
+    text = _DOT_BETWEEN_LETTERS.sub("", text.lower())
+    return [t for t in _TOKEN_SPLIT.split(text) if t]
+
+
+def _subject_keywords(search_query: str) -> set[str]:
+    """Distinctive subject words from the (expanded+translated) query, e.g. {"nursing"}."""
+    return {
+        t for t in re.findall(r"[a-z]{3,}", search_query.lower())
+        if t not in _GENERIC_TOKENS
+    }
 
 
 def _infer_target_university(text: str) -> str | None:
@@ -372,11 +406,19 @@ def _chunk_matches_target(text: str, source: str, target_university: str) -> boo
     return any(alias in text_lower for alias in aliases) or _source_matches_university(source, aliases)
 
 
-def _rank_chunks(question: str, texts: list[str], sources: list[str], scores, k: int = 6) -> list[str]:
+def _rank_chunks(
+    question: str,
+    texts: list[str],
+    sources: list[str],
+    scores,
+    k: int = 6,
+    subject_keywords: set[str] | None = None,
+) -> list[str]:
     question_lower = question.lower()
     wants_subjects = any(term in question_lower for term in SUBJECT_QUERY_TERMS)
     asks_existence = any(term in question_lower for term in EXISTENCE_QUERY_TERMS)
     target_university = _infer_target_university(question)
+    subject_keywords = subject_keywords or set()
 
     ranked = []
     for idx, base_score in enumerate(scores):
@@ -388,9 +430,19 @@ def _rank_chunks(question: str, texts: list[str], sources: list[str], scores, k:
         text_lower = text.lower()
         bonus = 0.0
 
+        # Does this chunk actually talk about the subject the user asked about?
+        has_subject = bool(subject_keywords) and any(kw in text_lower for kw in subject_keywords)
+
         if wants_subjects and any(hint in text_lower for hint in CURRICULUM_HINTS):
             bonus += 3.0
         if asks_existence and any(hint in text_lower for hint in PROGRAM_HINTS):
+            # Only reward a "Programs Offered" / department chunk when it is about
+            # the asked subject — otherwise another department's program list can
+            # hijack the answer and wrongly report the subject as missing.
+            if not subject_keywords or has_subject:
+                bonus += 4.0
+        # Generally float on-topic chunks above unrelated ones.
+        if has_subject:
             bonus += 2.0
         if "aerospace" in question_lower and "aerospace" in text_lower:
             bonus += 1.0
@@ -438,6 +490,7 @@ def _bm25_search(question: str, k: int = 6) -> str:
     """
     expanded = _keyword_expand(question)
     search_query = _translate_query(expanded)
+    subject_keywords = _subject_keywords(search_query)
 
     runtime = _get_runtime()
     scores = runtime["bm25"].get_scores(_tokenize(search_query))
@@ -447,6 +500,7 @@ def _bm25_search(question: str, k: int = 6) -> str:
         runtime["sources"],
         scores,
         k=k,
+        subject_keywords=subject_keywords,
     )
     logger.info("BM25 retrieved %d chunks", len(top_texts))
     return "\n\n".join(top_texts)

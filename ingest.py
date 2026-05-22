@@ -13,6 +13,14 @@ import json
 import sys
 from pathlib import Path
 
+# Windows consoles default to cp1252, which cannot encode the ✅ emoji below.
+_reconfigure = getattr(sys.stdout, "reconfigure", None)
+if _reconfigure:
+    try:
+        _reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 BASE_DIR = Path(__file__).resolve().parent
 PDF_DIR  = BASE_DIR / "pdfs"
 DATA_DIR = BASE_DIR / "data"
